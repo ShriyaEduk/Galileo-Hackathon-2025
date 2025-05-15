@@ -12,9 +12,9 @@
 # @log_stream_id = {{GetLogStreamId.response.body.$.id}}
 
 
-### Create run:
+### 1.- Get the project id by name
 # @name GetProjectId
-GET http://localhost:8088/projects/?project_name={{project_name}} HTTP/1.1
+GET http://localhost:8088/projects?project_name={{project_name}} HTTP/1.1
 Galileo-API-Key: {{galileo_api_key}}
 
 

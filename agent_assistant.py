@@ -11,11 +11,11 @@ This assistant has the following responsabilities:
 The entry point is the function process_request.
 """
 
-from pydantic import BaseModel
-import httpx
 import os
 from typing import Optional
 
+import httpx
+from pydantic import BaseModel
 
 GALILEO_API_KEY = os.getenv("GALILEO_API_KEY")
 BASE_URL = os.getenv("GALILEO_API_BASE_URL")
@@ -24,6 +24,7 @@ BASE_URL = os.getenv("GALILEO_API_BASE_URL")
 class ResponseBundle(BaseModel):
     response: str
     metrics: dict
+    metric_info: dict
 
 
 async def send_request_to_client(url: str, prompt: str) -> str:
@@ -34,42 +35,16 @@ async def send_request_to_client(url: str, prompt: str) -> str:
 
 
 async def get_project_id(project_name: str) -> Optional[str]:
-    """
-    Get project ID from project name using a POST request with filters.
-    """
-    url = f"{BASE_URL}/projects"
-    payload = {
-        "filters": [
-            {
-                "name": "name",
-                "operator": "eq",
-                "value": project_name,
-                "case_sensitive": True
-            }
-        ],
-        "sort": {
-            "name": "created_at",
-            "ascending": False,
-            "sort_type": "column"
-        }
-    }
-    headers = {
-        "accept": "*/*",
-        "galileo-api-key": GALILEO_API_KEY,
-        "content-type": "application/json",
-        "origin": BASE_URL,
-        "referer": BASE_URL,
-        "sec-fetch-mode": "cors",
-        "sec-fetch-site": "same-origin",
-        "user-agent": "Mozilla/5.0"
-    }
+    """Get project ID from project name."""
     async with httpx.AsyncClient() as client:
-        response = await client.post(url, json=payload, headers=headers)
+        response = await client.get(
+            f"{BASE_URL}/projects",
+            params={"project_name": project_name},
+            headers={"Galileo-API-Key": GALILEO_API_KEY},
+        )
         if response.status_code == 200:
             data = response.json()
-            projects = data.get("projects", [])
-            if projects:
-                return projects[0].get("id")
+            return data[0].get("id")
     return None
 
 
@@ -139,17 +114,19 @@ async def search_in_galileo(
     response = ""
     metrics = {}
 
-    if traces and isinstance(traces, list) and len(traces) > 0:
+    if (
+        traces
+        and isinstance(traces, dict)
+        and isinstance(traces["records"], list)
+        and len(traces["records"]) > 0
+    ):
         # Assuming the first trace contains the relevant information
-        trace = traces[0]
+        trace = traces["records"][0]
         response = trace.get("output", "")
-        metrics = {
-            "latency": trace.get("latency", 0),
-            "tokens": trace.get("tokens", 0),
-            "cost": trace.get("cost", 0),
-        }
+        metrics = trace.get("metrics", {})
+        metric_info = trace.get("metric_info", {})
 
-    return ResponseBundle(response=response, metrics=metrics)
+    return ResponseBundle(response=response, metrics=metrics, metric_info=metric_info)
 
 
 async def process_request(
