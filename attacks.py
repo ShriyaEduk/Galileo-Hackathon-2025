@@ -5,8 +5,15 @@ import streamlit as st
 def load_attacks_from_json(file_path="attacks.json"):
     """Load attacks from the attacks.json file and convert to a flat list of prompts."""
     try:
-        if os.path.exists(file_path):
-            with open(file_path, "r") as f:
+        # Get the directory where this script is located
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        # Build absolute path to the attacks.json file
+        abs_file_path = os.path.join(script_dir, file_path)
+        
+        print(f"Looking for attacks.json at: {abs_file_path}")
+        
+        if os.path.exists(abs_file_path):
+            with open(abs_file_path, "r") as f:
                 attacks_data = json.load(f)
             
             # Convert nested structure to flat list of prompts
@@ -18,10 +25,10 @@ def load_attacks_from_json(file_path="attacks.json"):
             
             return prompts
         else:
-            st.warning(f"File {file_path} not found. Using default prompts.")
+            st.warning(f"File {abs_file_path} not found. Using default prompts.")
             return None
     except Exception as e:
-        st.error(f"Error loading attacks from {file_path}: {str(e)}")
+        st.error(f"Error loading attacks from {abs_file_path}: {str(e)}")
         return None
 
 def get_default_prompts():
