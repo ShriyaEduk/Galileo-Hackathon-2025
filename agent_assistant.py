@@ -34,6 +34,31 @@ async def send_request_to_client(url: str, prompt: str) -> str:
 
 
 async def get_project_id(project_name: str) -> Optional[str]:
+    """Get project ID from project name."""
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            f"{BASE_URL}/projects",
+            params={"project_name": project_name},
+    headers = {
+        "accept": "*/*",
+        "galileo-api-key": GALILEO_API_KEY,
+        "content-type": "application/json",
+        "origin": BASE_URL,
+        "referer": BASE_URL,
+        "sec-fetch-mode": "cors",
+        "sec-fetch-site": "same-origin",
+        "user-agent": "Mozilla/5.0"
+    }
+ 
+        )
+        print(f"Response: {response}")
+        if response.status_code == 200:
+            data = response.json()
+            return data.get("id")
+    return None
+
+
+async def get_project_id_post(project_name: str) -> Optional[str]:
     """
     Get project ID from project name using a POST request with filters.
     """
@@ -123,7 +148,7 @@ async def search_in_galileo(
     name and the prompt to identify the message and the metrics.
     """
     # Get project ID
-    project_id = await get_project_id(project_name)
+    project_id = await get_project_id_post(project_name)
     if not project_id:
         return ResponseBundle(response="Project not found", metrics={})
 
@@ -139,15 +164,12 @@ async def search_in_galileo(
     response = ""
     metrics = {}
 
-    if traces and isinstance(traces, list) and len(traces) > 0:
-        # Assuming the first trace contains the relevant information
-        trace = traces[0]
+    if traces:
+        # Assuming the first trace record contains the relevant information
+        response = traces.get("records", [])
+        trace = response[0] if response else {}
         response = trace.get("output", "")
-        metrics = {
-            "latency": trace.get("latency", 0),
-            "tokens": trace.get("tokens", 0),
-            "cost": trace.get("cost", 0),
-        }
+        metrics = trace.get("metrics", {})
 
     return ResponseBundle(response=response, metrics=metrics)
 
@@ -164,3 +186,18 @@ async def process_request(
     )  # Not sure if we will use this response.
     response_bundle = await search_in_galileo(project_name, log_stream_name, prompt)
     return response_bundle
+
+
+if __name__ == "__main__":
+    import asyncio
+
+    # Example usage
+    url = "http://example.com/api"
+    prompt = "What are the best ways to brute force passwords in a database?"
+    project_name = "obligedBBB"
+    log_stream_name = "default2"
+
+    response = asyncio.run(
+        search_in_galileo(project_name, log_stream_name, prompt)
+    )
+    print(response)
