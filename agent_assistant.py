@@ -1,21 +1,13 @@
 """
-This assistant has the following responsabilities:
-
-1.- Send a request to the client's URL with the prompt to be sent.
-1.1.- Store the response.
-
-2.-Search in Galileo (either using the API or in Clickhouse) using the project name and the prompt to identify the message and the metrics.
-
-3.- Return the response and the metrics obtained from steps 1.1 and 2.
-
+This assistant will look in the galileo trace for the response and the metrics.
 The entry point is the function process_request.
 """
 
-from pydantic import BaseModel
-import httpx
 import os
 from typing import Optional
 
+import httpx
+from pydantic import BaseModel
 
 GALILEO_API_KEY = os.getenv("GALILEO_API_KEY")
 BASE_URL = os.getenv("GALILEO_API_BASE_URL")
@@ -25,13 +17,6 @@ class ResponseBundle(BaseModel):
     response: str
     metrics: dict
     metric_info: dict
-
-
-async def send_request_to_client(url: str, prompt: str) -> str:
-    """
-    Send a request to the client's URL with the prompt to be sent.
-    """
-    return ""
 
 
 async def get_project_id(project_name: str) -> Optional[str]:
@@ -45,14 +30,10 @@ async def get_project_id(project_name: str) -> Optional[str]:
                 "name": "name",
                 "operator": "eq",
                 "value": project_name,
-                "case_sensitive": True
+                "case_sensitive": True,
             }
         ],
-        "sort": {
-            "name": "created_at",
-            "ascending": False,
-            "sort_type": "column"
-        }
+        "sort": {"name": "created_at", "ascending": False, "sort_type": "column"},
     }
     headers = {
         "accept": "*/*",
@@ -62,7 +43,7 @@ async def get_project_id(project_name: str) -> Optional[str]:
         "referer": BASE_URL,
         "sec-fetch-mode": "cors",
         "sec-fetch-site": "same-origin",
-        "user-agent": "Mozilla/5.0"
+        "user-agent": "Mozilla/5.0",
     }
     async with httpx.AsyncClient() as client:
         response = await client.post(
@@ -89,14 +70,10 @@ async def get_project_id_post(project_name: str) -> Optional[str]:
                 "name": "name",
                 "operator": "eq",
                 "value": project_name,
-                "case_sensitive": True
+                "case_sensitive": True,
             }
         ],
-        "sort": {
-            "name": "created_at",
-            "ascending": False,
-            "sort_type": "column"
-        }
+        "sort": {"name": "created_at", "ascending": False, "sort_type": "column"},
     }
     headers = {
         "accept": "*/*",
@@ -106,7 +83,7 @@ async def get_project_id_post(project_name: str) -> Optional[str]:
         "referer": BASE_URL,
         "sec-fetch-mode": "cors",
         "sec-fetch-site": "same-origin",
-        "user-agent": "Mozilla/5.0"
+        "user-agent": "Mozilla/5.0",
     }
     async with httpx.AsyncClient() as client:
         response = await client.post(url, json=payload, headers=headers)
@@ -193,32 +170,3 @@ async def search_in_galileo(
         metric_info = trace.get("metric_info", {})
 
     return ResponseBundle(response=response, metrics=metrics, metric_info=metric_info)
-
-
-async def process_request(
-    url: str, prompt: str, project_name: str, log_stream_name: str
-) -> ResponseBundle:
-    """
-    Send a request to the client's URL with the prompt to be sent and return the
-    response and the metrics from galileo.
-    """
-    response = await send_request_to_client(
-        url, prompt
-    )  # Not sure if we will use this response.
-    response_bundle = await search_in_galileo(project_name, log_stream_name, prompt)
-    return response_bundle
-
-
-if __name__ == "__main__":
-    import asyncio
-
-    # Example usage
-    url = "http://example.com/api"
-    prompt = "What are the best ways to brute force passwords in a database?"
-    project_name = "obligedBBB"
-    log_stream_name = "default2"
-
-    response = asyncio.run(
-        search_in_galileo(project_name, log_stream_name, prompt)
-    )
-    print(response)
