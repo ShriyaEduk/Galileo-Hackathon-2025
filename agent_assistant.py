@@ -17,9 +17,8 @@ import os
 from typing import Optional
 
 
-GALILEO_API_KEY = "RXjKbMVCqZ-hYvbLt9VomSnLAIWV2Y0apU8nvd4i--8"
-BASE_URL = "http://localhost:8088"
-# BASE_URL = "https://api.galileo.ai/v2/"
+GALILEO_API_KEY = os.getenv("GALILEO_API_KEY")
+BASE_URL = os.getenv("GALILEO_API_BASE_URL")
 
 
 class ResponseBundle(BaseModel):
@@ -35,18 +34,43 @@ async def send_request_to_client(url: str, prompt: str) -> str:
 
 
 async def get_project_id(project_name: str) -> Optional[str]:
-    """Get project ID from project name."""
+    """
+    Get project ID from project name using a POST request with filters.
+    """
+    url = f"{BASE_URL}/projects"
+    payload = {
+        "filters": [
+            {
+                "name": "name",
+                "operator": "eq",
+                "value": project_name,
+                "case_sensitive": True
+            }
+        ],
+        "sort": {
+            "name": "created_at",
+            "ascending": False,
+            "sort_type": "column"
+        }
+    }
+    headers = {
+        "accept": "*/*",
+        "galileo-api-key": GALILEO_API_KEY,
+        "content-type": "application/json",
+        "origin": BASE_URL,
+        "referer": BASE_URL,
+        "sec-fetch-mode": "cors",
+        "sec-fetch-site": "same-origin",
+        "user-agent": "Mozilla/5.0"
+    }
     async with httpx.AsyncClient() as client:
-        response = await client.get(
-            f"{BASE_URL}/projects/",
-            params={"project_name": project_name},
-            headers={"Galileo-API-Key": GALILEO_API_KEY},
-        )
+        response = await client.post(url, json=payload, headers=headers)
         if response.status_code == 200:
             data = response.json()
-            return data.get("id")
+            projects = data.get("projects", [])
+            if projects:
+                return projects[0].get("id")
     return None
-
 
 
 async def get_log_stream_id(project_id: str, log_stream_name: str) -> Optional[str]:
