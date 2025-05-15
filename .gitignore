@@ -1,0 +1,9 @@
+.env.local
+.env
+.venv/
+*~
+env/
+#~
+.streamlit
+tools/__pycache__/
+__*
