@@ -11,11 +11,11 @@ This assistant has the following responsabilities:
 The entry point is the function process_request.
 """
 
-from pydantic import BaseModel
-import httpx
 import os
 from typing import Optional
 
+import httpx
+from pydantic import BaseModel
 
 GALILEO_API_KEY = os.getenv("GALILEO_API_KEY")
 BASE_URL = os.getenv("GALILEO_API_BASE_URL")
@@ -24,6 +24,7 @@ BASE_URL = os.getenv("GALILEO_API_BASE_URL")
 class ResponseBundle(BaseModel):
     response: str
     metrics: dict
+    metric_info: dict
 
 
 async def send_request_to_client(url: str, prompt: str) -> str:
@@ -34,31 +35,6 @@ async def send_request_to_client(url: str, prompt: str) -> str:
 
 
 async def get_project_id(project_name: str) -> Optional[str]:
-    """Get project ID from project name."""
-    async with httpx.AsyncClient() as client:
-        response = await client.get(
-            f"{BASE_URL}/projects",
-            params={"project_name": project_name},
-    headers = {
-        "accept": "*/*",
-        "galileo-api-key": GALILEO_API_KEY,
-        "content-type": "application/json",
-        "origin": BASE_URL,
-        "referer": BASE_URL,
-        "sec-fetch-mode": "cors",
-        "sec-fetch-site": "same-origin",
-        "user-agent": "Mozilla/5.0"
-    }
- 
-        )
-        print(f"Response: {response}")
-        if response.status_code == 200:
-            data = response.json()
-            return data.get("id")
-    return None
-
-
-async def get_project_id_post(project_name: str) -> Optional[str]:
     """
     Get project ID from project name using a POST request with filters.
     """
@@ -89,7 +65,11 @@ async def get_project_id_post(project_name: str) -> Optional[str]:
         "user-agent": "Mozilla/5.0"
     }
     async with httpx.AsyncClient() as client:
-        response = await client.post(url, json=payload, headers=headers)
+        response = await client.post(
+            f"{BASE_URL}/projects",
+            json=payload,
+            headers=headers,
+        )
         if response.status_code == 200:
             data = response.json()
             projects = data.get("projects", [])
@@ -148,7 +128,7 @@ async def search_in_galileo(
     name and the prompt to identify the message and the metrics.
     """
     # Get project ID
-    project_id = await get_project_id_post(project_name)
+    project_id = await get_project_id(project_name)
     if not project_id:
         return ResponseBundle(response="Project not found", metrics={})
 
@@ -164,14 +144,19 @@ async def search_in_galileo(
     response = ""
     metrics = {}
 
-    if traces:
-        # Assuming the first trace record contains the relevant information
-        response = traces.get("records", [])
-        trace = response[0] if response else {}
+    if (
+        traces
+        and isinstance(traces, dict)
+        and isinstance(traces["records"], list)
+        and len(traces["records"]) > 0
+    ):
+        # Assuming the first trace contains the relevant information
+        trace = traces["records"][0]
         response = trace.get("output", "")
         metrics = trace.get("metrics", {})
+        metric_info = trace.get("metric_info", {})
 
-    return ResponseBundle(response=response, metrics=metrics)
+    return ResponseBundle(response=response, metrics=metrics, metric_info=metric_info)
 
 
 async def process_request(
