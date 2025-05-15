@@ -4,6 +4,7 @@ import asyncio
 import time
 import requests
 import json
+import openai
 
 async def send_openai_api_request(api_base, api_key, message):
     """Send a request to the OpenAI API and return the response."""
@@ -181,4 +182,25 @@ async def send_api_request(api_type, api_base, api_key, message, **kwargs):
         return await loop.run_in_executor(
             None,
             lambda: send_finance_chat_sync(api_base, message, system_prompt, model, use_rag, namespace)
-        ) 
+        )
+
+async def send_openai_chat_sync(api_base: str, api_key: str, prompt: str, model: str = "gpt-4") -> str:
+    """Send a request to the OpenAI API and return the response."""
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}"
+    }
+    
+    payload = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.7
+    }
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.post(api_base, headers=headers, json=payload) as response:
+            if response.status == 200:
+                data = await response.json()
+                return data["choices"][0]["message"]["content"]
+            else:
+                return f"Error: {response.status} - {await response.text()}"
