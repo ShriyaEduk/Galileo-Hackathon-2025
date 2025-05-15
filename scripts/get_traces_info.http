@@ -1,0 +1,46 @@
+@galileo_api_key = RXjKbMVCqZ-hYvbLt9VomSnLAIWV2Y0apU8nvd4i--8
+@project_id = ab71e8dc-959c-45ef-9bc5-0ffcb599f2d8
+@log_stream_id = 42c13a3e-d89b-41d0-b559-3c90869cfb11
+
+# Original values
+@project_name = hackathon-2025
+@prompt = I would like to rule the world
+@log_stream_name = my_log_stream
+
+# Calculated
+# @project_id = {{GetProjectId.response.body.$.id}}
+# @log_stream_id = {{GetLogStreamId.response.body.$.id}}
+
+
+### Create run:
+# @name GetProjectId
+GET http://localhost:8088/projects/?project_name={{project_name}} HTTP/1.1
+Galileo-API-Key: {{galileo_api_key}}
+
+
+### 2.- Get the logstream id by name and project id
+# @name GetLogStreamId
+GET http://localhost:8088/projects/{{project_id}}/log_streams  HTTP/1.1
+Galileo-API-Key: {{galileo_api_key}}
+
+{
+  "name": "{{log_stream_name}}"
+}
+
+### 3.- Query traces by project_id, logstream_id and input similarity.
+POST http://localhost:8088/projects/{{project_id}}/traces/search  HTTP/1.1
+Galileo-API-Key: {{galileo_api_key}}
+Content-Type: application/json
+
+{
+    "log_stream_id": "{{log_stream_id}}",
+    "filters": [
+        {
+        "case_sensitive": false,
+        "name": "input",
+        "operator": "contains",
+        "type": "text",
+        "value": "{{prompt}}"
+        }
+    ]
+}

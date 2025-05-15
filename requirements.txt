@@ -1,3 +1,4 @@
 streamlit==1.32.2
 aiohttp==3.11.18
 pydantic==2.11.4
+httpx==0.28.1
